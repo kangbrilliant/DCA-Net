@@ -1,7 +1,7 @@
 # A Co-Interactive Transformer for Joint Slot Filling and Intent Detection
 This repository contains the PyTorch implementation of the paper: 
 
-**A Co-Interactive Transformer for Joint Slot Filling and Intent Detection**. [Libo Qin](http://ir.hit.edu.cn/~lbqin/), [TaiLu Liu](https://github.com/labage), [Wanxiang Che](http://ir.hit.edu.cn/~car/chinese.htm), [bingbing Kang](https://github.com/kangbrilliant), [Ting Liu](http://ir.hit.edu.cn/~liuting/). ***ACL 2020***
+**A Co-Interactive Transformer for Joint Slot Filling and Intent Detection**. [Libo Qin](http://ir.hit.edu.cn/~lbqin/), [TaiLu Liu](https://github.com/labage), [Wanxiang Che](http://ir.hit.edu.cn/~car/chinese.htm), [bingbing Kang](https://github.com/kangbrilliant), [Ting Liu](http://ir.hit.edu.cn/~liuting/).
 
 If you use any source codes or the datasets included in this toolkit in your work, please cite the following paper. The bibtex are listed below:
 
