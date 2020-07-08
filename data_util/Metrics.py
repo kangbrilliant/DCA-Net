@@ -1,10 +1,7 @@
 import sklearn.metrics as sk_metrics
 
 
-
-
 class Intent_Metrics(object):
-
     def __init__(self,intent_pred, intent_true):
         self.accuracy = sk_metrics.accuracy_score(intent_true, intent_pred)
         self.precision = sk_metrics.precision_score(intent_true, intent_pred ,average="macro")
@@ -12,9 +9,8 @@ class Intent_Metrics(object):
         self.f1 = sk_metrics.f1_score(intent_true, intent_pred, average="macro")
         self.classification_report = sk_metrics.classification_report(intent_true ,intent_pred)
 
-class Slot_Metrics(object):
-    """用于评价模型，计算每个标签的精确率，召回率，F1分数"""
 
+class Slot_Metrics(object):
     def __init__(self, golden_tags, predict_tags, label_list):
 
         # [[t1, t2], [t3, t4]...] --> [t1, t2, t3, t4...]
@@ -39,9 +35,8 @@ class Slot_Metrics(object):
         entity_pointer = None
         for i, label in enumerate(label_sequence):
             if label.startswith('B'):
-                #category = label.split('_')[1]
                 category = label[2:]
-                entity_pointer = (i, category) #记录实体开始位置与结束位置
+                entity_pointer = (i, category)
             elif label.startswith("E"):
                 if entity_pointer == None: continue
                 elif entity_pointer[1] != label[2:]:continue
@@ -49,7 +44,6 @@ class Slot_Metrics(object):
                 entitys [entity_position] = entity_pointer[1]
                 entity_pointer = None
             elif label.startswith("S") and entity_pointer == None:
-                #entitys[i,i] = label.split('_')[1]
                 entitys[i, i] = label[2:]
         return entitys
 
@@ -65,17 +59,17 @@ class Slot_Metrics(object):
             entity_nums = EentityNums(0,0,0)
 
             category_dict[label_category] = entity_nums#entity_nums
-        #获取每个槽位类别预测个数
+
         for pred_entity in pred_entitys.items():
             category_dict[pred_entity[1]].pred_nums +=1
-        # 获取每个槽位类别标注个数
+
         for golden_entity in golden_entitys.items():
             category_dict[golden_entity[1]].gold_nums +=1
-        # 获取每个槽位类别预测正确标注个数
+
         all_right = 0
         for golden_entity in golden_entitys.items():
             if golden_entity[0] in pred_entitys:
-                if golden_entity[1] == pred_entitys[golden_entity[0]]: #判断槽位类别类别是否相同
+                if golden_entity[1] == pred_entitys[golden_entity[0]]:
                     category_dict[golden_entity[1]].right_nums += 1
                     all_right += 1
         return (all_gold, all_right, all_pred ), category_dict
@@ -83,14 +77,14 @@ class Slot_Metrics(object):
     def f1_score(self, precision, recall):
         # precision = self.precision_score(right_nums, pred_nums)
         # recall = self.recall_score(right_nums, gold_nums)
-        f1 =  (2 * precision * recall) / (recall + precision) if (recall + precision) != 0 else 0.0
+        f1 = (2 * precision * recall) / (recall + precision) if (recall + precision) != 0 else 0.0
         return f1
 
     def precision_score(self, right_nums, pred_nums):
-        return   right_nums/pred_nums if pred_nums!=0 else 0.0 #防止 /0
+        return   right_nums/pred_nums if pred_nums!=0 else 0.0
 
     def recall_score(self, right_nums, gold_nums):
-        return right_nums / gold_nums if gold_nums != 0 else 0.0  # 防止 /0
+        return right_nums / gold_nums if gold_nums != 0 else 0.0
 
     def all_category_result(self):
         result=[['NO.', 'category','precision', 'recall', 'F1', 'right_nums',"gold_nums",'pred_nums']]
@@ -100,6 +94,8 @@ class Slot_Metrics(object):
             f1 = self.f1_score(precision, recall)
             result.append([str(i), category[0], str(precision), str(recall), str(f1), str(category[1].right_nums), str(category[1].gold_nums), str(category[1].pred_nums)])
         return result
+
+
 class EentityNums(object):
     def __init__(self,right_nums,pred_nums,gold_nums):
         self.right_nums = 0

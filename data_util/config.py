@@ -5,7 +5,7 @@ root_dir = os.path.expanduser("~")
 data_path = "./data/atis/"
 vocab_path = data_path + "vocab.txt"
 model_save_dir = "./ckpt/"
-model_path = "best_model_atis.bin"
+model_path = "best_model_atis11.bin"
 
 # model hyperparameters
 hidden_dim = 128
@@ -18,7 +18,7 @@ num_attention_heads = 8
 # hyperparameters
 max_len = 32
 lr_scheduler_gama = 0.5
-batch_size= 2
+batch_size= 32
 epoch = 100
 seed = 9
 lr=0.001

@@ -4,7 +4,6 @@ Copy file (including metric) from MiuLab:
 	https://github.com/MiuLab/SlotGated-SLU
 """
 
-
 # compute f1 score is modified from conlleval.pl
 def __startOfChunk( prevTag, tag, prevTagType, tagType, chunkStart = False ):
 	if prevTag == 'B' and tag == 'B':

@@ -1,16 +1,14 @@
 # coding=utf-8
-import os
-import datetime
 import numpy as np
 from tqdm import tqdm
 import re
 import jieba
-import random
-import sys
 from torch.utils.data import TensorDataset
 from torch.utils.data import DataLoader
 import torch
 from data_util import config
+
+
 class InputFeatures(object):
     def __init__(self, input_id, domain_label_id, input_mask, feature_list):
         self.input_id = input_id
@@ -30,13 +28,11 @@ def read_corpus(path, max_length, intent2idx, slot2idx, vocab, is_train=True):
 
     :return:
     """
-
     char2idx = {"a":1,"b":2,"c":3,"d":4,"e":5,"f":6,"g":7,"h":8,"i":9,"j":10,"k":11,"l":12,"m":13,"n":14,
                 "o":15,"p":16,"q":17,"r":18,"s":19,"t":20,"u":21,"v":22,"w":23,"x":24,"y":25,"z":26,"'":27,"unk":28}
     file = open(path, encoding='utf-8')
     content = file.readlines()
     file.close()
-    #random.shuffle(content)
     token_lists, slot_lists, intent_lists, mask_lists = [],[],[],[]
     char_lists=[]
     slot_outs=[]
@@ -47,8 +43,6 @@ def read_corpus(path, max_length, intent2idx, slot2idx, vocab, is_train=True):
     max_len_word =0
     for idx,line in enumerate(content):
         line = line.strip()
-
-
         if line !="":
             line = line.split(" ")
             if len(line) ==1:
@@ -103,8 +97,8 @@ def read_corpus(path, max_length, intent2idx, slot2idx, vocab, is_train=True):
     print(max_len_word)
     return data_loader
 
-def toTensor(token_lists, char_lists, slot_lists,intent_lists, mask_lists,is_train=True):
 
+def toTensor(token_lists, char_lists, slot_lists,intent_lists, mask_lists,is_train=True):
 
     dataset = TensorDataset(torch.LongTensor(token_lists),torch.LongTensor(char_lists),torch.LongTensor(slot_lists),torch.LongTensor(intent_lists),torch.LongTensor(mask_lists))
     if is_train:
@@ -113,21 +107,16 @@ def toTensor(token_lists, char_lists, slot_lists,intent_lists, mask_lists,is_tra
         data_loader = DataLoader(dataset, shuffle=False, batch_size=config.batch_size)
     return data_loader
 
+
 def make_label(query, domain):
-
     domain_label = domain
-
-    # query_list = jieba_cut(query)
-    #
-    #
-    # token_list = [ token for token in query_list]
     token_list =[]
     for token in query:
         token_list.append(token)
     return token_list, domain_label
 
+
 def make_feature(query, mall_tag):
-    #查找速度较慢，之后会解决
     feature_list =[0]*len(query)
     for start in range(len(query)):
         for end in range(start+1,len(query)+1):
@@ -135,6 +124,7 @@ def make_feature(query, mall_tag):
                 feature_list[start:end] = [1]*(end-start)
 
     return feature_list
+
 
 def build_vocab(file_path, max_size, min_freq):
     vocab_dic = {}
@@ -149,9 +139,8 @@ def build_vocab(file_path, max_size, min_freq):
 
         vocab_list = sorted([_ for _ in vocab_dic.items() if _[1] >= min_freq], key=lambda x: x[1], reverse=True)
         vocab_list = [word_count[0] for word_count in vocab_list]
-        # vocab_dic = {word_count[0]: idx for idx, word_count in enumerate(vocab_list)}
-        # vocab_dic.update({UNK: len(vocab_dic)})
     return vocab_list
+
 
 def read_emb (file_path, vocab_list ):
     embeddings=[]
@@ -162,8 +151,9 @@ def read_emb (file_path, vocab_list ):
                 embeddings.append(emb)
 
     return embeddings
-def process_emb(embedding,emb_dim):
 
+
+def process_emb(embedding,emb_dim):
     embeddings = {}
     embeddings["<pad>"] = np.zeros(emb_dim)
     embeddings["<unk>"] = np.random.uniform(-0.01,0.01,size = emb_dim)
@@ -181,6 +171,8 @@ def process_emb(embedding,emb_dim):
     embedding_matrix = np.array(list(embeddings.values()))
 
     return  embedding_matrix, word2id
+
+
 def lord_label_dict(path):
     label2id = {}
     id2label = {}
@@ -191,6 +183,8 @@ def lord_label_dict(path):
         id2label[int(id)] = label
     f.close()
     return id2label, label2id
+
+
 def jieba_cut(sen):
     sen_string = sen.strip()
     sen_string = re.sub("[\s+\.\!\/_,$%^*(+\"\']+|[∠～【】¯╮╯▽╰︶⊙+——<⑅ↁ́ᴗↁ́⑅)“”：;｡◕‿◕｡！?，。？、~@#￥%……&*（）]", "",
