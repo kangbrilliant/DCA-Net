@@ -1,21 +1,18 @@
 # -*- coding: utf-8 -*-
-
-import sys
 import os
-import numpy as np
-import torch
-from data_util import config
+import random
+import warnings
+
 from data_util.data_process import *
-import torch.optim as optim
 from tqdm import tqdm, trange
-from data_util.Metrics import Intent_Metrics, Slot_Metrics
-from model.cm_net import Joint_model
-from torch.utils.data import TensorDataset
-from torch.utils.data import DataLoader
-from Radam import RAdam, AdamW, PlainRAdam
+from data_util.Metrics import Intent_Metrics
+from model.joint_model_trans import Joint_model
+from model.Radam import RAdam
 from data_util import miulab
 
+warnings.filterwarnings('ignore')
 use_cuda = config.use_gpu and torch.cuda.is_available()
+
 
 def semantic_acc(pred_slot, real_slot, pred_intent, real_intent):
     """
@@ -30,6 +27,8 @@ def semantic_acc(pred_slot, real_slot, pred_intent, real_intent):
         total_count += 1.0
 
     return 1.0 * correct_count / total_count
+
+
 def set_seed():
     random.seed(config.seed)
     np.random.seed(config.seed)
@@ -49,7 +48,6 @@ def dev(model, dev_loader, idx2slot):
     true_slots = []
     for i, batch in enumerate(tqdm(dev_loader, desc="Evaluating")):
         inputs, char_lists, slot_labels, intent_labels, masks, = batch
-        # inputs, masks, tags = Variable(inputs), Variable(masks), Variable(tags)
         if torch.cuda.is_available():
             inputs, char_lists, masks, intent_labels, slot_labels = \
                 inputs.cuda(), char_lists.cuda(), masks.cuda(), intent_labels.cuda(), slot_labels.cuda()
@@ -67,7 +65,6 @@ def dev(model, dev_loader, idx2slot):
             pred = []
             true = []
             for j in range(len(pred_slot[i])):  # 遍历每条pred_slot的token
-
                 pred.append(idx2slot[pred_slot[i][j].item()])
                 true.append(idx2slot[slot_labels[i][j]])
             pred_slots.append(pred[1:-1])
@@ -126,15 +123,10 @@ def run_train(train_data_file, dev_data_file):
         model.cuda()
     model.train()
     optimizer = RAdam(model.parameters(), lr=config.lr, weight_decay=0.000001)
-    # optimizer = getattr(optim,"Adam")
-    # optimizer = optimizer(model.parameters(), lr = config.lr, weight_decay=0.00001)
     best_slot_f1 = [0.0, 0.0, 0.0]
     best_intent_acc = [0.0, 0.0, 0.0]
     best_sent_acc = [0.0, 0.0, 0.0]
-    # best_slot_f1 = 0.0
-    # best_intent_acc = 0.0
-    # best_sent_acc = 0.0
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [40, 60, 80], gamma=config.lr_scheduler_gama, last_epoch=-1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [40, 70], gamma=config.lr_scheduler_gama, last_epoch=-1)
 
     for epoch in trange(config.epoch, desc="Epoch"):
         print(scheduler.get_lr())
@@ -143,7 +135,6 @@ def run_train(train_data_file, dev_data_file):
             step += 1
             model.zero_grad()
             inputs, char_lists, slot_labels, intent_labels, masks, = batch
-            # inputs, masks, tags = Variable(inputs), Variable(masks), Variable(tags)
             if use_cuda:
                 inputs, char_lists, masks, intent_labels, slot_labels = \
                     inputs.cuda(), char_lists.cuda(), masks.cuda(), intent_labels.cuda(), slot_labels.cuda()
@@ -162,8 +153,7 @@ def run_train(train_data_file, dev_data_file):
                 print('epoch: {}|    step: {} |    loss: {}'.format(epoch, step, loss.item()))
 
         intent_acc, slot_f1, sent_acc = dev(model, dev_loader, idx2slot)
-        # if slot_f1 > best_slot_f1 or intent_acc > best_intent_acc or sent_acc > best_sent_acc:
-        #     torch.save(model, config.model_save_dir + config.model_name)
+
         if slot_f1 > best_slot_f1[1] :
             best_slot_f1 = [sent_acc, slot_f1, intent_acc, epoch]
             torch.save(model, config.model_save_dir + config.model_path)
@@ -177,7 +167,6 @@ def run_train(train_data_file, dev_data_file):
     print("best_slot_f1:", best_slot_f1)
     print("best_intent_acc:", best_intent_acc)
     print("best_sent_acc:", best_sent_acc)
-    # print("best_ave:", best_sent_ave)
 
 
 def run_test(test_data_file):
@@ -210,7 +199,6 @@ def run_test(test_data_file):
         pred_intent, pred_slot = model.pred_intent_slot(logits_intent, logits_slot, masks)
         pred_intents.extend(pred_intent.cpu().numpy().tolist())
         true_intents.extend(intent_labels.cpu().numpy().tolist())
-        #   intent_correct += (pred_intent.view(intent_labels.size()).data == intent_labels.data).sum().item()
 
         slot_labels = slot_labels.cpu().numpy().tolist()
         for i in range(len(pred_slot)):
@@ -236,8 +224,6 @@ def run_test(test_data_file):
 
 
 if __name__ == "__main__":
-
-    #
     train_file = "train.txt"
     dev_file = "dev.txt"
     test_file = "test.txt"
