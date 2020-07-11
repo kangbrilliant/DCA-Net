@@ -15,18 +15,6 @@ class HiddenGate(nn.Module):
         return self.nonlinearity(self.linear(torch.cat([h, x, h_slot, h_intent ],dim=-1)))
 
 
-# class SentenceStateGate(nn.Module):
-#
-#     def __init__(self, hidden_size, input_size, bias):
-#         super(SentenceStateGate, self).__init__()
-#         self.linear = nn.Linear(
-#             hidden_size + hidden_size, hidden_size, bias=bias)
-#
-#     def forward(self, prev_g, h):
-#         """ h is either h_av or h_i for different i"""
-#         return F.sigmoid(self.linear(torch.cat([prev_g, h])))
-
-
 class SLSTMCell(nn.Module):
 
     def __init__(self, input_size, hidden_size, bias=True):
@@ -37,29 +25,19 @@ class SLSTMCell(nn.Module):
         self.bias = bias
 
         # hidden state gates
-        # 5个门
         self.i_t_op = HiddenGate(hidden_size, input_size, bias)
         self.o_t_op = HiddenGate(hidden_size, input_size, bias)
         self.f_t_op = HiddenGate(hidden_size, input_size, bias)
         self.l_t_op = HiddenGate(hidden_size, input_size, bias)
         self.r_t_op = HiddenGate(hidden_size, input_size, bias)
-
-
         self.u_i_op = HiddenGate(hidden_size, input_size,bias, nonlinearity="tanh")
-
-        # sentence state gates
-        #no g !!
-        # self.g_f_g_op = SentenceStateGate(hidden_size, input_size, bias)
-        # self.g_f_i_op = SentenceStateGate(hidden_size, input_size, bias)
-        # self.g_o_op = SentenceStateGate(hidden_size, input_size, bias)
 
     def reset_params(self):
         pass
 
     def get_Xis(self, prev_h_states):
-        """Apply proper index selection mask to get xis"""
-        # How do you handle it getting shorter eh??
         pass
+
     def get_l_m_r(self,hidden_states ):
 
         batch_size, max_length, hidden_size = hidden_states.size()
@@ -72,7 +50,6 @@ class SLSTMCell(nn.Module):
 
     def forward(self, h_t, x, h_slot, h_intent, c_t):
 
-
         h_l_m_r,_,_,_ = self.get_l_m_r(h_t)
 
         i_t = self.i_t_op(h_l_m_r, x, h_slot, h_intent)
@@ -80,16 +57,10 @@ class SLSTMCell(nn.Module):
         f_t = self.f_t_op(h_l_m_r, x, h_slot, h_intent)
         l_t = self.l_t_op(h_l_m_r, x, h_slot, h_intent)
         r_t = self.r_t_op(h_l_m_r, x, h_slot, h_intent)
-
         u_t = self.u_i_op(h_l_m_r, x, h_slot, h_intent,)
-
-        # Now Get Softmaxed Versions
 
         i_t, f_t, l_t, r_t = self.softmaxed_gates(
             [i_t, f_t, l_t, r_t])
-
-        # what happens to the the last cell here?????? which has no i+1?
-        # what happens when first one has no i-1??
 
         _,c_t_left, c_t_mid, c_t_right = self.get_l_m_r(c_t)
 
