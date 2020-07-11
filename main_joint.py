@@ -58,7 +58,6 @@ def dev(model, dev_loader, idx2slot):
     slot_f1, slot_p, slot_r = SlotMetrics(true_slots, pred_slots)
     # intent f1, p, r
     Metrics_intent = IntentMetrics(pred_intents, true_intents)
-    intent_f1 = Metrics_intent.f1
     intent_acc = Metrics_intent.accuracy
     data_nums = len(dev_loader.dataset)
     ave_loss_intent = eval_loss_intent * config.batch_size / data_nums
@@ -66,9 +65,8 @@ def dev(model, dev_loader, idx2slot):
 
     sent_acc = semantic_acc(pred_slots, true_slots, pred_intents, true_intents)
     print('\nEvaluation - intent_loss: {:.6f} slot_loss: {:.6f} acc: {:.4f}% '
-          'intent f1: {:.4f} slot f1: {:.4f} sent acc: {:.4f} \n'.format(ave_loss_intent, ave_loss_slot,
-                                                                         intent_acc, intent_f1,
-                                                                         slot_f1, sent_acc))
+          'slot f1: {:.4f} sent acc: {:.4f} \n'.format(ave_loss_intent, ave_loss_slot,
+                                                       intent_acc, slot_f1, sent_acc))
     model.train()
 
     return intent_acc, slot_f1, sent_acc
@@ -196,13 +194,11 @@ def run_test(test_data_file):
     slot_f1 = SlotMetrics(true_slots, pred_slots)[0]
     Metrics_intent = IntentMetrics(pred_intents, true_intents)
     print(Metrics_intent.classification_report)
-    intent_f1 = Metrics_intent.f1
     intent_acc = Metrics_intent.accuracy
     sent_acc = semantic_acc(pred_slots, true_slots, pred_intents, true_intents)
-    print('\nEvaluation -  acc: {:.4f}% ' 'intent f1: {:.4f} slot f1: {:.4f} sent_acc: {:.4f}  \n'.format(intent_acc, intent_f1,
-                                                                                                        slot_f1, sent_acc))
+    print('\nEvaluation -  acc: {:.4f}% ' 'slot f1: {:.4f} sent_acc: {:.4f}  \n'.format(intent_acc, slot_f1, sent_acc))
 
-    return intent_f1
+    return sent_acc
 
 
 if __name__ == "__main__":
