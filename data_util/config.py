@@ -5,7 +5,7 @@ root_dir = os.path.expanduser("~")
 data_path = "./data/atis/"
 vocab_path = data_path + "vocab.txt"
 model_save_dir = "./ckpt/"
-model_path = "best_model_atis.bin"
+model_path = "atis_model.bin"
 
 # model hyperparameters
 hidden_dim = 128
