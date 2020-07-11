@@ -5,28 +5,13 @@ import warnings
 
 from data_util.data_process import *
 from tqdm import tqdm, trange
-from data_util.Metrics import Intent_Metrics
+from data_util.Metrics import IntentMetrics, SlotMetrics,semantic_acc
 from model.joint_model_trans import Joint_model
 from model.Radam import RAdam
-from data_util import miulab
+
 
 warnings.filterwarnings('ignore')
 use_cuda = config.use_gpu and torch.cuda.is_available()
-
-
-def semantic_acc(pred_slot, real_slot, pred_intent, real_intent):
-    """
-    Compute the accuracy based on the whole predictions of
-    given sentence, including slot and intent.
-    """
-    total_count, correct_count = 0.0, 0.0
-    for p_slot, r_slot, p_intent, r_intent in zip(pred_slot, real_slot, pred_intent, real_intent):
-
-        if p_slot == r_slot and p_intent == r_intent:
-            correct_count += 1.0
-        total_count += 1.0
-
-    return 1.0 * correct_count / total_count
 
 
 def set_seed():
@@ -61,18 +46,18 @@ def dev(model, dev_loader, idx2slot):
         eval_loss_slot += loss_slot.item()
         slot_labels = slot_labels.cpu().numpy().tolist()
 
-        for i in range(len(pred_slot)):  # 遍历每个batch的pred_slot
+        for i in range(len(pred_slot)):
             pred = []
             true = []
-            for j in range(len(pred_slot[i])):  # 遍历每条pred_slot的token
+            for j in range(len(pred_slot[i])):
                 pred.append(idx2slot[pred_slot[i][j].item()])
                 true.append(idx2slot[slot_labels[i][j]])
             pred_slots.append(pred[1:-1])
             true_slots.append(true[1:-1])
     # slot f1, p, r
-    slot_f1, slot_p, slot_r = miulab.computeF1Score(true_slots, pred_slots)
+    slot_f1, slot_p, slot_r = SlotMetrics(true_slots, pred_slots)
     # intent f1, p, r
-    Metrics_intent = Intent_Metrics(pred_intents, true_intents)
+    Metrics_intent = IntentMetrics(pred_intents, true_intents)
     intent_f1 = Metrics_intent.f1
     intent_acc = Metrics_intent.accuracy
     data_nums = len(dev_loader.dataset)
@@ -192,7 +177,6 @@ def run_test(test_data_file):
 
     for i, batch in enumerate(tqdm(test_loader, desc="Evaluating")):
         inputs, char_lists, slot_labels, intent_labels, masks, = batch
-        # inputs, masks, tags = Variable(inputs), Variable(masks), Variable(tags)
         if torch.cuda.is_available():
             inputs, char_lists, masks, intent_labels, slot_labels = inputs.cuda(), char_lists.cuda(), masks.cuda(), intent_labels.cuda(), slot_labels.cuda()
         logits_intent, logits_slot = model.forward_logit((inputs, char_lists), masks)
@@ -209,16 +193,14 @@ def run_test(test_data_file):
                 true.append(idx2slot[slot_labels[i][j]])
             pred_slots.append(pred[1:-1])
             true_slots.append(true[1:-1])
-    slot_f1 = miulab.computeF1Score(true_slots, pred_slots)[0]
-    Metrics_intent = Intent_Metrics(pred_intents, true_intents)
+    slot_f1 = SlotMetrics(true_slots, pred_slots)[0]
+    Metrics_intent = IntentMetrics(pred_intents, true_intents)
     print(Metrics_intent.classification_report)
     intent_f1 = Metrics_intent.f1
     intent_acc = Metrics_intent.accuracy
     sent_acc = semantic_acc(pred_slots, true_slots, pred_intents, true_intents)
-    print('\nEvaluation -  acc: {:.4f}% ' 'intent f1: {:.4f} slot f1: {:.4f} sent_acc: {:.4f}  \n'.format(intent_acc,
-                                                                                                        intent_f1,
-                                                                                                        slot_f1,
-                                                                                                        sent_acc))
+    print('\nEvaluation -  acc: {:.4f}% ' 'intent f1: {:.4f} slot f1: {:.4f} sent_acc: {:.4f}  \n'.format(intent_acc, intent_f1,
+                                                                                                        slot_f1, sent_acc))
 
     return intent_f1
 
