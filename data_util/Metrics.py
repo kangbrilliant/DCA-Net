@@ -1,103 +1,174 @@
 import sklearn.metrics as sk_metrics
 
 
-class Intent_Metrics(object):
-    def __init__(self,intent_pred, intent_true):
+class IntentMetrics(object):
+    def __init__(self, intent_pred, intent_true):
         self.accuracy = sk_metrics.accuracy_score(intent_true, intent_pred)
-        self.precision = sk_metrics.precision_score(intent_true, intent_pred ,average="macro")
-        self.recall = sk_metrics.recall_score(intent_true, intent_pred ,average="macro")
+        self.precision = sk_metrics.precision_score(intent_true, intent_pred, average="macro")
+        self.recall = sk_metrics.recall_score(intent_true, intent_pred, average="macro")
         self.f1 = sk_metrics.f1_score(intent_true, intent_pred, average="macro")
-        self.classification_report = sk_metrics.classification_report(intent_true ,intent_pred)
+        self.classification_report = sk_metrics.classification_report(intent_true, intent_pred)
 
 
-class Slot_Metrics(object):
-    def __init__(self, golden_tags, predict_tags, label_list):
+def SlotMetrics(correct_slots, pred_slots):
+    correctChunk = {}
+    correctChunkCnt = 0.0
+    foundCorrect = {}
+    foundCorrectCnt = 0.0
+    foundPred = {}
+    foundPredCnt = 0.0
+    correctTags = 0.0
+    tokenCount = 0.0
+    for correct_slot, pred_slot in zip(correct_slots, pred_slots):
+        inCorrect = False
+        lastCorrectTag = 'O'
+        lastCorrectType = ''
+        lastPredTag = 'O'
+        lastPredType = ''
+        for c, p in zip(correct_slot, pred_slot):
+            correctTag, correctType = __splitTagType(c)
+            predTag, predType = __splitTagType(p)
 
-        # [[t1, t2], [t3, t4]...] --> [t1, t2, t3, t4...]
-        golden_tags_without_end=[]
-        # for i ,golden_tag in enumerate(golden_tags):
-        #
-        #     golden_tags_without_end.append(golden_tag[:-1])
-        self.golden_tags = golden_tags
-        self.predict_tags = predict_tags
-        self.label_list = label_list
+            if inCorrect == True:
+                if __endOfChunk(lastCorrectTag, correctTag, lastCorrectType, correctType) == True and \
+                        __endOfChunk(lastPredTag, predTag, lastPredType, predType) == True and \
+                        (lastCorrectType == lastPredType):
+                    inCorrect = False
+                    correctChunkCnt += 1.0
+                    if lastCorrectType in correctChunk:
+                        correctChunk[lastCorrectType] += 1.0
+                    else:
+                        correctChunk[lastCorrectType] = 1.0
+                elif __endOfChunk(lastCorrectTag, correctTag, lastCorrectType, correctType) != \
+                        __endOfChunk(lastPredTag, predTag, lastPredType, predType) or \
+                        (correctType != predType):
+                    inCorrect = False
 
-        (self.all_gold,self.all_right, self.all_pred), self.category_dict = self.count_entity(golden_tags, predict_tags, label_list)
+            if __startOfChunk(lastCorrectTag, correctTag, lastCorrectType, correctType) == True and \
+                    __startOfChunk(lastPredTag, predTag, lastPredType, predType) == True and \
+                    (correctType == predType):
+                inCorrect = True
 
+            if __startOfChunk(lastCorrectTag, correctTag, lastCorrectType, correctType) == True:
+                foundCorrectCnt += 1
+                if correctType in foundCorrect:
+                    foundCorrect[correctType] += 1.0
+                else:
+                    foundCorrect[correctType] = 1.0
 
-        self.precision = self.precision_score(self.all_right,self.all_pred)
-        self.recall = self.recall_score(self.all_right,self.all_gold)
-        self.f1 = self.f1_score(self.precision,self.recall)
+            if __startOfChunk(lastPredTag, predTag, lastPredType, predType) == True:
+                foundPredCnt += 1.0
+                if predType in foundPred:
+                    foundPred[predType] += 1.0
+                else:
+                    foundPred[predType] = 1.0
 
-    def split_entity(self, label_sequence):
+            if correctTag == predTag and correctType == predType:
+                correctTags += 1.0
 
-        entitys = {}
-        entity_pointer = None
-        for i, label in enumerate(label_sequence):
-            if label.startswith('B'):
-                category = label[2:]
-                entity_pointer = (i, category)
-            elif label.startswith("E"):
-                if entity_pointer == None: continue
-                elif entity_pointer[1] != label[2:]:continue
-                entity_position = (entity_pointer[0], i)
-                entitys [entity_position] = entity_pointer[1]
-                entity_pointer = None
-            elif label.startswith("S") and entity_pointer == None:
-                entitys[i, i] = label[2:]
-        return entitys
+            tokenCount += 1.0
 
-    def count_entity(self, golden_tags, predict_tags, label_list):
+            lastCorrectTag = correctTag
+            lastCorrectType = correctType
+            lastPredTag = predTag
+            lastPredType = predType
 
-        golden_entitys = self.split_entity(golden_tags)
-        pred_entitys = self.split_entity(predict_tags)
-        all_gold = len(golden_entitys.items())
-        all_pred = len(pred_entitys.items())
+        if inCorrect == True:
+            correctChunkCnt += 1.0
+            if lastCorrectType in correctChunk:
+                correctChunk[lastCorrectType] += 1.0
+            else:
+                correctChunk[lastCorrectType] = 1.0
 
-        category_dict = {}
-        for label_category in label_list:
-            entity_nums = EentityNums(0,0,0)
+    if foundPredCnt > 0:
+        precision = 1.0 * correctChunkCnt / foundPredCnt
+    else:
+        precision = 0
 
-            category_dict[label_category] = entity_nums#entity_nums
+    if foundCorrectCnt > 0:
+        recall = 1.0 * correctChunkCnt / foundCorrectCnt
+    else:
+        recall = 0
 
-        for pred_entity in pred_entitys.items():
-            category_dict[pred_entity[1]].pred_nums +=1
+    if (precision + recall) > 0:
+        f1 = (2.0 * precision * recall) / (precision + recall)
+    else:
+        f1 = 0
 
-        for golden_entity in golden_entitys.items():
-            category_dict[golden_entity[1]].gold_nums +=1
-
-        all_right = 0
-        for golden_entity in golden_entitys.items():
-            if golden_entity[0] in pred_entitys:
-                if golden_entity[1] == pred_entitys[golden_entity[0]]:
-                    category_dict[golden_entity[1]].right_nums += 1
-                    all_right += 1
-        return (all_gold, all_right, all_pred ), category_dict
-
-    def f1_score(self, precision, recall):
-        # precision = self.precision_score(right_nums, pred_nums)
-        # recall = self.recall_score(right_nums, gold_nums)
-        f1 = (2 * precision * recall) / (recall + precision) if (recall + precision) != 0 else 0.0
-        return f1
-
-    def precision_score(self, right_nums, pred_nums):
-        return   right_nums/pred_nums if pred_nums!=0 else 0.0
-
-    def recall_score(self, right_nums, gold_nums):
-        return right_nums / gold_nums if gold_nums != 0 else 0.0
-
-    def all_category_result(self):
-        result=[['NO.', 'category','precision', 'recall', 'F1', 'right_nums',"gold_nums",'pred_nums']]
-        for i, category in enumerate(self.category_dict.items()):
-            precision = self.precision_score(category[1].right_nums, category[1].pred_nums)
-            recall = self.precision_score(category[1].right_nums, category[1].gold_nums )
-            f1 = self.f1_score(precision, recall)
-            result.append([str(i), category[0], str(precision), str(recall), str(f1), str(category[1].right_nums), str(category[1].gold_nums), str(category[1].pred_nums)])
-        return result
+    return f1, precision, recall
 
 
-class EentityNums(object):
-    def __init__(self,right_nums,pred_nums,gold_nums):
-        self.right_nums = 0
-        self.pred_nums = 0
-        self.gold_nums = 0
+def __startOfChunk(prevTag, tag, prevTagType, tagType, chunkStart=False):
+    if prevTag == 'B' and tag == 'B':
+        chunkStart = True
+    if prevTag == 'I' and tag == 'B':
+        chunkStart = True
+    if prevTag == 'O' and tag == 'B':
+        chunkStart = True
+    if prevTag == 'O' and tag == 'I':
+        chunkStart = True
+
+    if prevTag == 'E' and tag == 'E':
+        chunkStart = True
+    if prevTag == 'E' and tag == 'I':
+        chunkStart = True
+    if prevTag == 'O' and tag == 'E':
+        chunkStart = True
+    if prevTag == 'O' and tag == 'I':
+        chunkStart = True
+
+    if tag != 'O' and tag != '.' and prevTagType != tagType:
+        chunkStart = True
+    return chunkStart
+
+
+def __endOfChunk(prevTag, tag, prevTagType, tagType, chunkEnd=False):
+    if prevTag == 'B' and tag == 'B':
+        chunkEnd = True
+        if prevTag == 'B' and tag == 'O':
+            chunkEnd = True
+        if prevTag == 'I' and tag == 'B':
+            chunkEnd = True
+        if prevTag == 'I' and tag == 'O':
+            chunkEnd = True
+
+        if prevTag == 'E' and tag == 'E':
+            chunkEnd = True
+        if prevTag == 'E' and tag == 'I':
+            chunkEnd = True
+        if prevTag == 'E' and tag == 'O':
+            chunkEnd = True
+        if prevTag == 'I' and tag == 'O':
+            chunkEnd = True
+
+        if prevTag != 'O' and prevTag != '.' and prevTagType != tagType:
+            chunkEnd = True
+        return chunkEnd
+
+
+def __splitTagType(tag):
+    s = tag.split('-')
+    if len(s) > 2 or len(s) == 0:
+        raise ValueError('tag format wrong. it must be B-xxx.xxx')
+    if len(s) == 1:
+        tag = s[0]
+        tagType = ""
+    else:
+        tag = s[0]
+        tagType = s[1]
+    return tag, tagType
+
+
+def semantic_acc(pred_slot, real_slot, pred_intent, real_intent):
+    """
+    Compute the accuracy based on the whole predictions of
+    given sentence, including slot and intent.
+    """
+    total_count, correct_count = 0.0, 0.0
+    for p_slot, r_slot, p_intent, r_intent in zip(pred_slot, real_slot, pred_intent, real_intent):
+
+        if p_slot == r_slot and p_intent == r_intent:
+            correct_count += 1.0
+        total_count += 1.0
+
+    return 1.0 * correct_count / total_count
