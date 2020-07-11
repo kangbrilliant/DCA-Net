@@ -11,7 +11,12 @@ from model.Radam import RAdam
 
 
 warnings.filterwarnings('ignore')
-use_cuda = config.use_gpu and torch.cuda.is_available()
+if config.use_gpu and torch.cuda.is_available():
+    device = torch.device("cuda", torch.cuda.current_device())
+    use_cuda = True
+else:
+    device = torch.device("cpu")
+    use_cuda = False
 
 
 def set_seed():
@@ -33,7 +38,7 @@ def dev(model, dev_loader, idx2slot):
     true_slots = []
     for i, batch in enumerate(tqdm(dev_loader, desc="Evaluating")):
         inputs, char_lists, slot_labels, intent_labels, masks, = batch
-        if torch.cuda.is_available():
+        if use_cuda:
             inputs, char_lists, masks, intent_labels, slot_labels = \
                 inputs.cuda(), char_lists.cuda(), masks.cuda(), intent_labels.cuda(), slot_labels.cuda()
         logits_intent, logits_slot = model.forward_logit((inputs, char_lists), masks)
@@ -165,9 +170,7 @@ def run_test(test_data_file):
     test_dir = os.path.join(config.data_path, test_data_file)
     test_loader = read_corpus(test_dir, max_length=config.max_len, intent2idx=intent2idx, slot2idx=slot2idx,
                               vocab=vocab, is_train=False)
-    model = torch.load(config.model_save_dir + config.model_path)
-    if use_cuda:
-        model.cuda()
+    model = torch.load(config.model_save_dir + config.model_path, map_location=device)
     model.eval()
     pred_intents = []
     true_intents = []
@@ -176,7 +179,7 @@ def run_test(test_data_file):
 
     for i, batch in enumerate(tqdm(test_loader, desc="Evaluating")):
         inputs, char_lists, slot_labels, intent_labels, masks, = batch
-        if torch.cuda.is_available():
+        if use_cuda:
             inputs, char_lists, masks, intent_labels, slot_labels = inputs.cuda(), char_lists.cuda(), masks.cuda(), intent_labels.cuda(), slot_labels.cuda()
         logits_intent, logits_slot = model.forward_logit((inputs, char_lists), masks)
         pred_intent, pred_slot = model.pred_intent_slot(logits_intent, logits_slot, masks)
