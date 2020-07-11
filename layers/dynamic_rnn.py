@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
-# file: dynamic_rnn.py
-# author: songyouwei <youwei0314@gmail.com>
-# Copyright (C) 2018. All Rights Reserved.
-
 
 import torch
 import torch.nn as nn
-import numpy as np
 
 class DynamicLSTM(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers=1, bias=True, batch_first=True, dropout=0,
@@ -50,42 +45,38 @@ class DynamicLSTM(nn.Module):
 
     def forward(self, x, x_len):
         """
-        sequence -> sort -> pad and pack ->process using RNN -> unpack ->unsort
-
         :param x: sequence embedding vectors
         :param x_len: numpy/tensor list
         :return:
         """
-        """sort"""
+        # sort
         x_sort_idx = torch.sort(-x_len)[1].long()
         x_unsort_idx = torch.sort(x_sort_idx)[1].long()
         x_len = x_len[x_sort_idx]
         x = x[x_sort_idx]
-        """pack"""
+        # pack
         x_emb_p = torch.nn.utils.rnn.pack_padded_sequence(x, x_len, batch_first=self.batch_first)
         
-        # process using the selected RNN
+        # using the selected RNN
         if self.rnn_type == 'LSTM': 
             out_pack, (ht, ct) = self.RNN(x_emb_p, None)
         else: 
             out_pack, ht = self.RNN(x_emb_p, None)
             ct = None
-        """unsort: h"""
-        ht = torch.transpose(ht, 0, 1)[
-            x_unsort_idx]  # (num_layers * num_directions, batch, hidden_size) -> (batch, ...)
+        # unsort - h
+        ht = torch.transpose(ht, 0, 1)[x_unsort_idx]
         ht = torch.transpose(ht, 0, 1)
 
         if self.only_use_last_hidden_state:
             return ht
         else:
-            """unpack: out"""
-            out = torch.nn.utils.rnn.pad_packed_sequence(out_pack, batch_first=self.batch_first, total_length =32)  # (sequence, lengths)
-            out = out[0]  #
+            # unpack - out
+            out = torch.nn.utils.rnn.pad_packed_sequence(out_pack, batch_first=self.batch_first, total_length =32)
+            out = out[0]
             out = out[x_unsort_idx]
-            """unsort: out c"""
+            # unsort - out / c
             if self.rnn_type =='LSTM':
-                ct = torch.transpose(ct, 0, 1)[
-                    x_unsort_idx]  # (num_layers * num_directions, batch, hidden_size) -> (batch, ...)
+                ct = torch.transpose(ct, 0, 1)[x_unsort_idx]
                 ct = torch.transpose(ct, 0, 1)
 
             return out, (ht, ct)
