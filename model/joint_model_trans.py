@@ -21,7 +21,6 @@ class Joint_model(nn.Module):
         self.emb_drop = nn.Dropout(config.emb_dorpout)
         self.embed = nn.Embedding.from_pretrained(torch.tensor(embedding_matrix, dtype=torch.float), padding_idx=0)
         self.embed.weight.requires_grad = True
-        # self.emb_char = WordCharCNNEmbedding()
         self.biLSTM = DynamicLSTM(config.emb_dim, config.hidden_dim // 2, bidirectional=True, batch_first=True,
                                   dropout=config.lstm_dropout, num_layers=1)
         self.intent_fc = nn.Linear(self.hidden_dim, self.n_class)
@@ -37,14 +36,13 @@ class Joint_model(nn.Module):
         x, x_char = x
         x_len = torch.sum(x != 0, dim=-1)
         x_emb = self.emb_drop(self.embed(x))
-        batch_size, max_length, emb_size = x_emb.size()
-        
+
         H, (_, _) = self.biLSTM(x_emb, x_len)
         H_I, H_S = self.I_S_Emb(H, H, mask)
         H_I, H_S = self.T_block1(H_I + H, H_S + H, mask)
         H_I_1, H_S_1 = self.I_S_Emb(H_I, H_S, mask)
         H_I, H_S = self.T_block2(H_I + H_I_1, H_S + H_S_1, mask)
-        
+
         intent_input = F.max_pool1d((H_I + H).transpose(1, 2), H_I.size(1)).squeeze(2)
         logits_intent = self.intent_fc(intent_input)
         logits_slot = self.slot_fc(H_S + H)
@@ -63,14 +61,13 @@ class Joint_model(nn.Module):
         return loss_intent, loss_slot
 
     def pred_intent_slot(self, logits_intent, logits_slot, mask):
-        t0 = time.time()
-        x_len = torch.sum(mask != 0, dim=1)
         mask = mask[:, 0:logits_slot.size(1)]
         mask = mask.transpose(1, 0)
         logits_slot = logits_slot.transpose(1, 0)
         pred_intent = torch.max(logits_intent, 1)[1]
         pred_slot = self.crflayer.decode(logits_slot, mask=mask)
         return pred_intent, pred_slot
+
 
 class LayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-12):
@@ -129,11 +126,14 @@ class Intermediate_I_S(nn.Module):
         self.LayerNorm_I = LayerNorm(hidden_size, eps=1e-12)
         self.LayerNorm_S = LayerNorm(hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(config.attention_dropout)
+        self.use_cuda = config.use_gpu and torch.cuda.is_available()
 
     def forward(self, hidden_states_I, hidden_states_S):
         hidden_states_in = torch.cat([hidden_states_I, hidden_states_S], dim=2)
         batch_size, max_length, hidden_size = hidden_states_in.size()
-        h_pad = torch.zeros(batch_size, 1, hidden_size).cuda()
+        h_pad = torch.zeros(batch_size, 1, hidden_size)
+        if self.use_cuda:
+            h_pad = h_pad.cuda()
         h_left = torch.cat([h_pad, hidden_states_in[:, :max_length - 1, :]], dim=1)
         h_right = torch.cat([hidden_states_in[:, 1:, :], h_pad], dim=1)
         hidden_states_in = torch.cat([hidden_states_in, h_left, h_right], dim=2)
@@ -154,14 +154,13 @@ class I_S_Block(nn.Module):
         self.I_Out = SelfOutput(hidden_size, config.attention_dropout)
         self.S_Out = SelfOutput(hidden_size, config.attention_dropout)
         self.I_S_Feed_forward = Intermediate_I_S(hidden_size, hidden_size)
-        # self.S_Feed_forward = BertIntermediate(hidden_size, hidden_size)
 
     def forward(self, H_intent_input, H_slot_input, mask):
         H_slot, H_intent = self.I_S_Attention(H_intent_input, H_slot_input, mask)
         H_slot = self.S_Out(H_slot, H_slot_input)
         H_intent = self.I_Out(H_intent, H_intent_input)
         H_intent, H_slot = self.I_S_Feed_forward(H_intent, H_slot)
-        
+
         return H_intent, H_slot
 
 
@@ -173,7 +172,6 @@ class Label_Attention(nn.Module):
         self.W_slot_emb = slot_emb.weight
 
     def forward(self, input_intent, input_slot, mask):
-
         intent_score = torch.matmul(input_intent, self.W_intent_emb.t())
         slot_score = torch.matmul(input_slot, self.W_slot_emb.t())
         intent_probs = nn.Softmax(dim=-1)(intent_score)
@@ -202,7 +200,6 @@ class I_S_SelfAttention(nn.Module):
         self.dropout = nn.Dropout(config.attention_dropout)
 
     def transpose_for_scores(self, x):
-        # tuple （1，2）+（3，4）=（1，2，3，4）
         last_dim = int(x.size()[-1] / self.num_attention_heads)
         new_x_shape = x.size()[:-1] + (self.num_attention_heads, last_dim)
         x = x.view(*new_x_shape)
@@ -211,11 +208,6 @@ class I_S_SelfAttention(nn.Module):
     def forward(self, intent, slot, mask):
         extended_attention_mask = mask.unsqueeze(1).unsqueeze(2)
 
-        # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
-        # masked positions, this operation will create a tensor which is 0.0 for
-        # positions we want to attend and -10000.0 for masked positions.
-        # Since we are adding it to the raw scores before the softmax, this is
-        # effectively the same as removing these entirely.
         extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype)  # fp16 compatibility
         attention_mask = (1.0 - extended_attention_mask) * -10000.0
 
@@ -261,4 +253,3 @@ class I_S_SelfAttention(nn.Module):
         context_layer = context_layer.view(*new_context_layer_shape)
         context_layer_intent = context_layer_intent.view(*new_context_layer_shape_intent)
         return context_layer, context_layer_intent
-
