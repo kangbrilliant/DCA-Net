@@ -30,12 +30,12 @@ class SlotMetrics(object):
             lastPredTag = 'O'
             lastPredType = ''
             for c, p in zip(correct_slot, pred_slot):
-                correctTag, correctType = self.__splitTagType(c)
-                predTag, predType = self.__splitTagType(p)
+                correctTag, correctType = SlotMetrics.splitTagType(c)
+                predTag, predType = SlotMetrics.splitTagType(p)
 
                 if inCorrect == True:
-                    if self.__endOfChunk(lastCorrectTag, correctTag, lastCorrectType, correctType) == True and \
-                            self.__endOfChunk(lastPredTag, predTag, lastPredType, predType) == True and \
+                    if SlotMetrics.endOfChunk(lastCorrectTag, correctTag, lastCorrectType, correctType) == True and \
+                            SlotMetrics.endOfChunk(lastPredTag, predTag, lastPredType, predType) == True and \
                             (lastCorrectType == lastPredType):
                         inCorrect = False
                         correctChunkCnt += 1.0
@@ -43,24 +43,24 @@ class SlotMetrics(object):
                             correctChunk[lastCorrectType] += 1.0
                         else:
                             correctChunk[lastCorrectType] = 1.0
-                    elif self.__endOfChunk(lastCorrectTag, correctTag, lastCorrectType, correctType) != \
-                            self.__endOfChunk(lastPredTag, predTag, lastPredType, predType) or \
+                    elif SlotMetrics.endOfChunk(lastCorrectTag, correctTag, lastCorrectType, correctType) != \
+                            SlotMetrics.endOfChunk(lastPredTag, predTag, lastPredType, predType) or \
                             (correctType != predType):
                         inCorrect = False
 
-                if self.__startOfChunk(lastCorrectTag, correctTag, lastCorrectType, correctType) == True and \
-                        self.__startOfChunk(lastPredTag, predTag, lastPredType, predType) == True and \
+                if SlotMetrics.startOfChunk(lastCorrectTag, correctTag, lastCorrectType, correctType) == True and \
+                        SlotMetrics.startOfChunk(lastPredTag, predTag, lastPredType, predType) == True and \
                         (correctType == predType):
                     inCorrect = True
 
-                if self.__startOfChunk(lastCorrectTag, correctTag, lastCorrectType, correctType) == True:
+                if SlotMetrics.startOfChunk(lastCorrectTag, correctTag, lastCorrectType, correctType) == True:
                     foundCorrectCnt += 1
                     if correctType in foundCorrect:
                         foundCorrect[correctType] += 1.0
                     else:
                         foundCorrect[correctType] = 1.0
 
-                if self.__startOfChunk(lastPredTag, predTag, lastPredType, predType) == True:
+                if SlotMetrics.startOfChunk(lastPredTag, predTag, lastPredType, predType) == True:
                     foundPredCnt += 1.0
                     if predType in foundPred:
                         foundPred[predType] += 1.0
@@ -102,7 +102,7 @@ class SlotMetrics(object):
         return f1, precision, recall
 
     @staticmethod
-    def __startOfChunk(prevTag, tag, prevTagType, tagType, chunkStart=False):
+    def startOfChunk(prevTag, tag, prevTagType, tagType, chunkStart=False):
         if prevTag == 'B' and tag == 'B':
             chunkStart = True
         if prevTag == 'I' and tag == 'B':
@@ -126,31 +126,31 @@ class SlotMetrics(object):
         return chunkStart
 
     @staticmethod
-    def __endOfChunk(prevTag, tag, prevTagType, tagType, chunkEnd=False):
+    def endOfChunk(prevTag, tag, prevTagType, tagType, chunkEnd=False):
         if prevTag == 'B' and tag == 'B':
             chunkEnd = True
-            if prevTag == 'B' and tag == 'O':
-                chunkEnd = True
-            if prevTag == 'I' and tag == 'B':
-                chunkEnd = True
-            if prevTag == 'I' and tag == 'O':
-                chunkEnd = True
+        if prevTag == 'B' and tag == 'O':
+            chunkEnd = True
+        if prevTag == 'I' and tag == 'B':
+            chunkEnd = True
+        if prevTag == 'I' and tag == 'O':
+            chunkEnd = True
 
-            if prevTag == 'E' and tag == 'E':
-                chunkEnd = True
-            if prevTag == 'E' and tag == 'I':
-                chunkEnd = True
-            if prevTag == 'E' and tag == 'O':
-                chunkEnd = True
-            if prevTag == 'I' and tag == 'O':
-                chunkEnd = True
+        if prevTag == 'E' and tag == 'E':
+            chunkEnd = True
+        if prevTag == 'E' and tag == 'I':
+            chunkEnd = True
+        if prevTag == 'E' and tag == 'O':
+            chunkEnd = True
+        if prevTag == 'I' and tag == 'O':
+            chunkEnd = True
 
-            if prevTag != 'O' and prevTag != '.' and prevTagType != tagType:
-                chunkEnd = True
-            return chunkEnd
+        if prevTag != 'O' and prevTag != '.' and prevTagType != tagType:
+            chunkEnd = True
+        return chunkEnd
 
     @staticmethod
-    def __splitTagType(tag):
+    def splitTagType(tag):
         s = tag.split('-')
         if len(s) > 2 or len(s) == 0:
             raise ValueError('tag format wrong. it must be B-xxx.xxx')
