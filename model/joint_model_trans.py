@@ -126,13 +126,12 @@ class Intermediate_I_S(nn.Module):
         self.LayerNorm_I = LayerNorm(hidden_size, eps=1e-12)
         self.LayerNorm_S = LayerNorm(hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(config.attention_dropout)
-        self.use_cuda = config.use_gpu and torch.cuda.is_available()
 
     def forward(self, hidden_states_I, hidden_states_S):
         hidden_states_in = torch.cat([hidden_states_I, hidden_states_S], dim=2)
         batch_size, max_length, hidden_size = hidden_states_in.size()
         h_pad = torch.zeros(batch_size, 1, hidden_size)
-        if self.use_cuda:
+        if config.use_gpu and torch.cuda.is_available():
             h_pad = h_pad.cuda()
         h_left = torch.cat([h_pad, hidden_states_in[:, :max_length - 1, :]], dim=1)
         h_right = torch.cat([hidden_states_in[:, 1:, :], h_pad], dim=1)
