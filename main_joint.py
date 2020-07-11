@@ -55,7 +55,8 @@ def dev(model, dev_loader, idx2slot):
             pred_slots.append(pred[1:-1])
             true_slots.append(true[1:-1])
     # slot f1, p, r
-    slot_f1, slot_p, slot_r = SlotMetrics(true_slots, pred_slots)
+    slot_metrics = SlotMetrics(true_slots, pred_slots)
+    slot_f1, slot_p, slot_r = slot_metrics.get_slot_metrics()
     # intent f1, p, r
     Metrics_intent = IntentMetrics(pred_intents, true_intents)
     intent_acc = Metrics_intent.accuracy
@@ -191,7 +192,9 @@ def run_test(test_data_file):
                 true.append(idx2slot[slot_labels[i][j]])
             pred_slots.append(pred[1:-1])
             true_slots.append(true[1:-1])
-    slot_f1 = SlotMetrics(true_slots, pred_slots)[0]
+    slot_metrics = SlotMetrics(true_slots, pred_slots)
+    slot_f1, _, _ = slot_metrics.get_slot_metrics()
+
     Metrics_intent = IntentMetrics(pred_intents, true_intents)
     print(Metrics_intent.classification_report)
     intent_acc = Metrics_intent.accuracy
