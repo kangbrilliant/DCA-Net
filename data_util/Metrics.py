@@ -6,10 +6,9 @@ class IntentMetrics(object):
         self.accuracy = sk_metrics.accuracy_score(intent_true, intent_pred)
         self.precision = sk_metrics.precision_score(intent_true, intent_pred, average="macro")
         self.recall = sk_metrics.recall_score(intent_true, intent_pred, average="macro")
-        self.f1 = sk_metrics.f1_score(intent_true, intent_pred, average="macro")
         self.classification_report = sk_metrics.classification_report(intent_true, intent_pred)
 
-
+        
 def SlotMetrics(correct_slots, pred_slots):
     correctChunk = {}
     correctChunkCnt = 0.0
