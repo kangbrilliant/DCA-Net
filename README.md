@@ -33,4 +33,4 @@ We highly suggest you using [Anaconda](https://www.anaconda.com/) to manage your
 ## Change dataset:
 1) Modify data_path in config.py
 
-If you have any question, please issue the project or [email](mailto:xxu@ir.hit.edu.cn) me and we will reply you soon.
+If you have any question, please issue the project or [email](478421198@qq.com) me and we will reply you soon.
